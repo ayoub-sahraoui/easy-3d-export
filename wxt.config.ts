@@ -6,6 +6,7 @@ import { pluginRegistry } from './src/plugins/registry';
 // See https://wxt.dev/api/reference/wxt/interfaces/inlineconfig.html
 export default defineConfig({
   srcDir: 'src',
+  zip: { artifactTemplate: 'easy-3d-export-{{browser}}.zip' },
   modules: ['@wxt-dev/module-react'],
   vite: () => ({
     plugins: [tailwindcss()],

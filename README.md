@@ -16,6 +16,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/ayoub-sahraoui/easy-3d-export/releases/latest/download/easy-3d-export-chrome.zip">Download for Chrome</a> ·
   <a href="#quick-start">Install</a> ·
   <a href="#quick-demo">Demo</a> ·
   <a href="#supported-models">Supported models</a> ·
@@ -52,19 +53,16 @@
 
 ## Quick start
 
-Requires **Chrome**, **Node.js 22.12+**, and **pnpm**. Installation currently uses Chrome’s developer mode.
+**[Download the latest Chrome build](https://github.com/ayoub-sahraoui/easy-3d-export/releases/latest/download/easy-3d-export-chrome.zip)** — ready to use, with no Node.js or build tools required.
 
-```bash
-git clone https://github.com/ayoub-sahraoui/easy-3d-export.git
-cd easy-3d-export
-pnpm install --frozen-lockfile
-pnpm build
-```
+1. Download **easy-3d-export-chrome.zip** from the [latest release](https://github.com/ayoub-sahraoui/easy-3d-export/releases/latest).
+2. Extract the ZIP into a folder you will keep, such as `Easy 3D Export`.
+3. Open `chrome://extensions` and enable **Developer mode**.
+4. Choose **Load unpacked** and select the extracted folder containing `manifest.json`.
+5. Pin **Easy 3D Export**, then click its icon to open the side panel.
+6. Open a Meshy or Rodin model page. Refresh the page if it was already open when you installed the extension.
 
-1. Open `chrome://extensions` and enable **Developer mode**.
-2. Choose **Load unpacked** and select the project’s `.output/chrome-mv3` folder.
-3. Pin **Easy 3D Export**, then click its icon to open the side panel.
-4. Open a Meshy or Rodin model page. Refresh the page if it was already open when you installed the extension.
+Keep the extracted folder in place: Chrome loads the extension from it. To update, replace its contents with the new release, click **Reload** on the extension in `chrome://extensions`, and refresh your provider tabs.
 
 ### Export a model
 
@@ -92,12 +90,25 @@ See [architecture and permissions](docs/ARCHITECTURE.md) for the implementation 
 
 Built with **WXT, React, TypeScript, Tailwind CSS, shadcn/ui, and Three.js**.
 
+### Build from source
+
+Requires **Node.js 22.12+** and **pnpm**.
+
+```bash
+git clone https://github.com/ayoub-sahraoui/easy-3d-export.git
+cd easy-3d-export
+pnpm install --frozen-lockfile
+pnpm build
+```
+
+Load `.output/chrome-mv3` using **Load unpacked** in `chrome://extensions`.
+
 ```bash
 pnpm dev          # development build with hot reload
 pnpm test         # unit and integration tests
 pnpm typecheck    # TypeScript checks
 pnpm build        # production Chrome extension
-pnpm zip          # package the extension as a ZIP
+pnpm zip          # .output/easy-3d-export-chrome.zip
 ```
 
 The test suite covers provider parsing, plugin settings and lifecycles, tab synchronization, local binary transfer, and synthetic Meshy/Draco conversion through GLB and OBJ export. Tests run with local fixtures and do not contact provider APIs.
