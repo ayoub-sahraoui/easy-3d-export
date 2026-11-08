@@ -62,7 +62,7 @@ export async function meshyToGlb(value: ArrayBuffer | Uint8Array): Promise<Array
       message: 'The file is neither a .meshy container nor a GLB.',
     });
   }
-  if (buffer.byteLength < OVERHEAD + ENCRYPTED_PREFIX) {
+  if (buffer.byteLength < OVERHEAD + 12) {
     throw new ModelError('MODEL_DECODE_FAILED', { message: 'This .meshy file is too small to be valid.' });
   }
   if (buffer.byteLength > MAX_BYTES) {
@@ -79,13 +79,15 @@ export async function meshyToGlb(value: ArrayBuffer | Uint8Array): Promise<Array
   counter.set(bytes.subarray(10, 22));
   counter[15] = 2;
 
+  const encryptedLen = Math.min(buffer.byteLength - OVERHEAD, ENCRYPTED_PREFIX);
+
   const key = await getKey();
   let prefix: ArrayBuffer;
   try {
     prefix = await crypto.subtle.decrypt(
       { name: 'AES-CTR', counter, length: 32 },
       key,
-      bytes.subarray(32, 32 + ENCRYPTED_PREFIX),
+      bytes.subarray(32, 32 + encryptedLen),
     );
   } catch (e) {
     throw new ModelError('MODEL_DECODE_FAILED', {
@@ -100,7 +102,9 @@ export async function meshyToGlb(value: ArrayBuffer | Uint8Array): Promise<Array
   }
   const out = new Uint8Array(buffer.byteLength - OVERHEAD);
   out.set(new Uint8Array(prefix));
-  out.set(bytes.subarray(32 + ENCRYPTED_PREFIX + 16), ENCRYPTED_PREFIX);
+  if (buffer.byteLength - OVERHEAD > encryptedLen) {
+    out.set(bytes.subarray(32 + encryptedLen + 16), encryptedLen);
+  }
   // Rewrite the GLB total-length field to the reconstructed size.
   new DataView(out.buffer).setUint32(8, out.length, true);
   return out.buffer;
@@ -112,9 +116,7 @@ export async function meshyToGlb(value: ArrayBuffer | Uint8Array): Promise<Array
  */
 export async function glbToMeshy(value: ArrayBuffer | Uint8Array, nonce = new Uint8Array(12)): Promise<ArrayBuffer> {
   const glb = asArrayBuffer(value);
-  if (glb.byteLength < ENCRYPTED_PREFIX) {
-    throw new Error('test fixture GLB must be at least 8192 bytes');
-  }
+  const encryptedLen = Math.min(glb.byteLength, ENCRYPTED_PREFIX);
   const bytes = new Uint8Array(glb);
   const counter = new Uint8Array(16);
   counter.set(nonce);
@@ -123,7 +125,7 @@ export async function glbToMeshy(value: ArrayBuffer | Uint8Array, nonce = new Ui
   const prefix = await crypto.subtle.encrypt(
     { name: 'AES-CTR', counter, length: 32 },
     key,
-    bytes.subarray(0, ENCRYPTED_PREFIX),
+    bytes.subarray(0, encryptedLen),
   );
   const out = new Uint8Array(OVERHEAD + glb.byteLength);
   out.set(new TextEncoder().encode(MAGIC), 0);
@@ -131,7 +133,9 @@ export async function glbToMeshy(value: ArrayBuffer | Uint8Array, nonce = new Ui
   out.set(nonce, 10);
   // 22..32 reserved zeros
   out.set(new Uint8Array(prefix), 32);
-  // 16 zero bytes stand in for the skipped tag
-  out.set(bytes.subarray(ENCRYPTED_PREFIX), 32 + ENCRYPTED_PREFIX + 16);
+  // 16 zero bytes stand in for the skipped tag (at offset 32 + encryptedLen)
+  if (glb.byteLength > encryptedLen) {
+    out.set(bytes.subarray(encryptedLen), 32 + encryptedLen + 16);
+  }
   return out.buffer;
 }

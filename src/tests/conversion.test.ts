@@ -9,6 +9,7 @@ import { getMeshoptDecoder } from '@/conversion/meshopt/decoder';
 import { MeshoptDecoder as ReferenceDecoder } from '@/conversion/meshopt/meshopt-decoder-reference.js';
 import { ModelError } from '@/core/errors';
 import { AccessorReader } from '@/conversion/gltf/accessors';
+import { convertModel } from '@/conversion/pipeline';
 import { buildMeshoptGlb, buildMeshyFile, quadMesh } from './helpers/synth';
 
 describe('GLB container', () => {
@@ -47,8 +48,13 @@ describe('meshy container decrypt', () => {
   });
 
   it('rejects files that are too small or not containers', async () => {
+    // Genuine container header but truncated before 60 bytes (overhead + glb header)
+    const tooSmall = new Uint8Array(50);
+    tooSmall.set(new TextEncoder().encode('MESHY.AI'), 0);
+    new DataView(tooSmall.buffer).setUint16(8, 1, true);
+    await expect(meshyToGlb(tooSmall.buffer)).rejects.toThrow(/too small/i);
     await expect(meshyToGlb(new ArrayBuffer(8240))).rejects.toThrow(ModelError);
-    await expect(meshyToGlb(new Uint8Array(2000).buffer)).rejects.toThrow(ModelError);
+    await expect(meshyToGlb(new Uint8Array(20).buffer)).rejects.toThrow(ModelError);
   });
 
   it('round-trips a synthetic .meshy into a valid GLB', async () => {
@@ -61,9 +67,37 @@ describe('meshy container decrypt', () => {
     expect(recovered.byteLength).toBe(glb.byteLength);
   });
 
+  it('round-trips a small .meshy under 8 KiB into a valid GLB', async () => {
+    const glb = await buildMeshoptGlb({ meshes: [quadMesh()] }, { padTo: 0 });
+    expect(glb.byteLength).toBeLessThan(8192);
+    const meshy = await buildMeshyFile(glb, new Uint8Array(12).fill(3));
+    const recovered = await meshyToGlb(meshy);
+    const parsed = parseGlb(recovered);
+    expect(parsed.json.meshes).toHaveLength(1);
+    expect(recovered.byteLength).toBe(glb.byteLength);
+  });
+
   it('passes a plain GLB through untouched', async () => {
     const glb = writeGlb({ asset: { version: '2.0' } });
     await expect(meshyToGlb(glb)).resolves.toBe(glb);
+  });
+
+  it('end-to-end converts a small .meshy file under 8 KiB', async () => {
+    const glb = await buildMeshoptGlb({ meshes: [quadMesh()] }, { padTo: 0 });
+    expect(glb.byteLength).toBeLessThan(8192);
+    const meshy = await buildMeshyFile(glb, new Uint8Array(12).fill(5));
+    const result = await convertModel({
+      source: {
+        name: 'small.meshy',
+        bytes: meshy,
+      },
+      format: 'glb',
+      includeTextures: false,
+      textures: [],
+      basename: 'small-model',
+    });
+    expect(result.format).toBe('glb');
+    expect(result.stats?.triangles).toBe(2);
   });
 });
 
